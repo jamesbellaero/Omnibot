@@ -1,2 +1,2 @@
-# Omnibot
-# Omnibot
+# How to operate omnibot
+
