@@ -168,10 +168,6 @@ void updateWheels(){
   servoD.write(writeSpeed[3]+90);
   Serial.print("Servo D Speed: ");
   Serial.println(writeSpeed[3]);
-
-  ex[4]=vx;
-  ey[4]=vy;
-  eTheta[4]=vTheta;
 }
 updatePids(){
   //  double error = Setpoint - Input;
@@ -183,12 +179,13 @@ updatePids(){
   float dt=(float)(tCurr-tLast);
   tLast=tCurr;
 
-  if(ex[0]<eps){
+  if(ex[0]<eps){//Threshold for integral gain, seems reasonable to me. Could also just set i-term low I guess
     ex[1]=0;
-    ex[3]=tCurr;
+    ex[3]=tCurr;//Time since last off target
   }
-  ex[1]=ex[1]*dt;
-  ex[2]=(ex[0]-ex[4])/dt;
+  ex[1]=ex[1]*dt;//set the integral term
+  ex[2]=(ex[0]-ex[4])/dt;//set the derivate term
+  ex[4]=ex[0];//set the previous error
 
   if(ey[0]<eps){
     ey[1]=0;
@@ -196,6 +193,7 @@ updatePids(){
   }
   ey[1]=ey[1]*dt;
   ey[2]=(ey[0]-ey[4])/dt;
+  ey[4]=ey[0];
 
   if(eTheta[0]<eps){
     eTheta[1]=0;
@@ -203,6 +201,7 @@ updatePids(){
   }
   eTheta[1]=eTheta[1]*dt;
   eTheta[2]=(eTheta[0]-eTheta[4])/dt;
+  eTheta[4]=eTheta[0];
   
 
 }
