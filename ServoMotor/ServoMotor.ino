@@ -28,19 +28,30 @@ float container[4];
 //array to store speeds of motors
 float writeSpeed[4];  
 //current values of motors
-float vx, vy, theta, thetaROC;
+float dx, dy, theta, dTheta;
 float wheelRad=.025;//2.5 cm
 float bodyRad=.065;//6.5 cm, related to body radius
-float k = 75;//scaling constant
-
-
 
 //pids
-p_v=75;
-p_w=346.15;
+float k_v[];
+float k_w[];
 
+//errors
+float ex[5];//dx, dx_sum, dx_rate, dt
+float ey[5];
+float eTheta[5];
+long tLast;//time of last update
+
+float eps=.05;//error at which it assumes it has reached the destination for integral gain
   
 void setup(){
+  //ideally, read these from file
+  k_v[0]=75;
+  k_v[1]=0;
+  k_v[2]=0;
+  k_w[0]=346.15;
+  k_w[1]=0;
+  k_w[2]=0;
   //stop movement
   stopMove();
   //begin Serial
@@ -52,7 +63,7 @@ void setup(){
   radio.openWritingPipe(addresses[0]);
   radio.openReadingPipe(1,addresses[1]);
   radio.startListening();
-  
+  tLast=millis();
 }
 
 void loop(){
@@ -77,17 +88,17 @@ void loop(){
         
       
         //transfer from container to variables
-        vx = container[0];
-        vy = container[1];
+        ex[0] = container[0];
+        ey[0] = container[1];
         theta = container[2];
-        thetaROC = container[3];
+        eTheta[0] = container[3];
         
         //debug
         /*
-        vx = 1;
-        vy = 1;
+        dx = 1;
+        dy = 1;
         theta = 0;
-        thetaROC = 0;
+        dTheta = 0;
         */
         
         //change wheel velocities based on new input values
@@ -109,37 +120,91 @@ void loop(){
   
 }
 void updateWheels(){
-    attachAll();
-    //Vx, Vy, orientation, orientationROC, radius
-    
-    writeSpeed[0] = -(p_v*(-sin(theta) * vx + cos(theta)*vy) + p_w*bodyRadius*thetaROC);
-    writeSpeed[1] = ((p_v*(cos(theta) * vx + sin(theta)*vy) - p_w*bodyRadius*thetaROC));
-    writeSpeed[2] = (p_v*(-sin(theta) * vx + cos(theta)*vy) - p_w*bodyRadius*thetaROC);
-    writeSpeed[3] = -(p_v*(cos(theta) * vx + sin(theta)*vy) + p_w*bodyRadius*thetaROC);
-    
-    for(int c = 0; c<4; c++){
-       if(writeSpeed[c]<9&&writeSpeed[c]>1){//What is the purpose of this? Is 10 the minimum?
-         writeSpeed[c] = 10;
-       }
-    
-    }
+  attachAll();
+  //dx, dy, orientation, orientationROC, radius
+  
+  updatePids();
+  float angularSpeeds[4];
+  float linearSpeeds[4];
+  float vx=0;
+  float vy=0;
+  float vTheta=0;
 
-    servoA.write(writeSpeed[0]+90);//90 is pretty much the zero offset. Arduino doesn't quite get that servos can have 90/180/360/continuous rotation
-    Serial.print("Servo A Speed: ");
-    Serial.println(writeSpeed[0]);
+  for(i=0;i<3;i++){
+    vx=vx+k_v[i]*ex[i];
+    vy=vy+k_v[i]*ey[i];
+    vTheta=vTheta+k_w[i]*eTheta[i];
+  }
+  
+  linearSpeeds[0]=(sin(theta) * vx - cos(theta) * vy);
+  linearSpeeds[1]=(cos(theta) * vx + sin(theta) * vy);
+  linearSpeeds[2]=(-sin(theta) * vx + cos(theta) * vy);
+  linearSpeeds[3]=(-cos(theta) * vx - sin(theta) * vy);
 
-    servoB.write(writeSpeed[1]+90);
-    Serial.print("Servo B Speed: ");
-    Serial.println(writeSpeed[1]);
+  angularSpeeds[0]=-(bodyRadius*vTheta);
+  angularSpeeds[0]=-(bodyRadius*vTheta);
+  angularSpeeds[0]=-(bodyRadius*vTheta);
+  angularSpeeds[0]=-(bodyRadius*vTheta);
 
-    servoC.write(writeSpeed[2]+90);
-    Serial.print("Servo C Speed: ");
-    Serial.println(writeSpeed[2]);
- 
-    servoD.write(writeSpeed[3]+90);
-    Serial.print("Servo D Speed: ");
-    Serial.println(writeSpeed[3]);
-    }
+  for(i=0;i<4;i++){
+    writeSpeed[i]=linearSpeeds[i]+angularSpeeds[i];
+    if(writeSpeed[i]<9&&writeSpeed[i]>1){//What is the purpose of this? Is 10 the minimum?
+       writeSpeed[i] = 10;
+     }
+  }
+
+  servoA.write(writeSpeed[0]+90);//90 is pretty much the zero offset. Arduino doesn't quite get that servos can have 90/180/360/continuous rotation
+  Serial.print("Servo A Speed: ");
+  Serial.println(writeSpeed[0]);
+
+  servoB.write(writeSpeed[1]+90);
+  Serial.print("Servo B Speed: ");
+  Serial.println(writeSpeed[1]);
+
+  servoC.write(writeSpeed[2]+90);
+  Serial.print("Servo C Speed: ");
+  Serial.println(writeSpeed[2]);
+
+  servoD.write(writeSpeed[3]+90);
+  Serial.print("Servo D Speed: ");
+  Serial.println(writeSpeed[3]);
+
+  ex[4]=vx;
+  ey[4]=vy;
+  eTheta[4]=vTheta;
+}
+updatePids(){
+  //  double error = Setpoint - Input;
+  //  errSum += (error * timeChange);
+  //  double dErr = (error - lastErr) / timeChange;
+  //  Output = kp * error + ki * errSum + kd * dErr;
+  
+  long tCurr=millis();
+  float dt=(float)(tCurr-tLast);
+  tLast=tCurr;
+
+  if(ex[0]<eps){
+    ex[1]=0;
+    ex[3]=tCurr;
+  }
+  ex[1]=ex[1]*dt;
+  ex[2]=(ex[0]-ex[4])/dt;
+
+  if(ey[0]<eps){
+    ey[1]=0;
+    ey[3]=tCurr;
+  }
+  ey[1]=ey[1]*dt;
+  ey[2]=(ey[0]-ey[4])/dt;
+
+  if(eTheta[0]<eps){
+    eTheta[1]=0;
+    eTheta[3]=tCurr;
+  }
+  eTheta[1]=eTheta[1]*dt;
+  eTheta[2]=(eTheta[0]-eTheta[4])/dt;
+  
+
 }
 
 void attachAll(){
