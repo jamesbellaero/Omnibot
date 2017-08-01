@@ -5,7 +5,6 @@ struct Vec4{
 struct Vec3{
 	double v[3];
 };
-Vec4 q;
 
 Vec3 Quat2RPY(Vec4 q){
 	float q0 = q.v[0]; //q0 = q.v[1];
