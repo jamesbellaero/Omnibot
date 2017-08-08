@@ -6,10 +6,10 @@
 #include <Servo.h>
 #include <SPI.h>
 #include <XBee.h>
-
+#include <SoftwareSerial.h>
 //initialize radio
 XBee xbee = XBee();
-SoftwareSerial serial(11, 12);
+SoftwareSerial serial = SoftwareSerial(11, 12);
 Rx16Response rx16 = Rx16Response();
 
 //declare Servo 
@@ -34,8 +34,8 @@ float wheelRad=.025;//2.5 cm
 float bodyRad=.065;//6.5 cm, related to body radius
 
 //pids
-float k_v[];
-float k_w[];
+//float k_v[];
+//float k_w[];
 
 //errors
 float ex[5];//dx, dx_sum, dx_rate, dt
@@ -46,18 +46,18 @@ float eps=.05;//error at which it assumes it has reached the destination for int
   
 void setup(){
   //ideally, read these from file
-  k_v[0]=75;
-  k_v[1]=0;
-  k_v[2]=0;
-  k_w[0]=346.15;
-  k_w[1]=0;
-  k_w[2]=0;
+//  k_v[0]=75;
+//  k_v[1]=0;
+//  k_v[2]=0;
+//  k_w[0]=346.15;
+//  k_w[1]=0;
+//  k_w[2]=0;
   //stop movement
-  stopMove();
+//  stopMove();
   //begin radio connection
   serial.begin(9600);
   xbee.setSerial(serial);
-  Serial.begin();
+  Serial.begin(9600);
   //for pids
   tLast=millis();
 }
@@ -65,7 +65,7 @@ void setup(){
 void loop(){
   serial.listen();
   while(serial.available()>0){
-    char inByte = portOne.read();
+    char inByte = serial.read();
     Serial.write(inByte);
   }
     
