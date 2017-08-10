@@ -9,20 +9,20 @@
 #include <SoftwareSerial.h>
 //initialize radio
 XBee xbee = XBee();
-SoftwareSerial serial = SoftwareSerial(11, 12);
+SoftwareSerial serial = SoftwareSerial(10, 11);
 Rx16Response rx16 = Rx16Response();
 
 //declare Servo 
 Servo servoA; //3
 Servo servoB; //5
 Servo servoC; //6
-Servo servoD; //10
+Servo servoD; //9
 
 //initialize Servo pins
 int servoPinA = 3;
 int servoPinB = 5;
 int servoPinC = 6;
-int servoPinD = 10;
+int servoPinD = 9;
 
 //create array to store incoming doubles
 float container[4];
@@ -56,6 +56,7 @@ void setup(){
 //  stopMove();
   //begin radio connection
   serial.begin(9600);
+  serial.listen();
   xbee.setSerial(serial);
   Serial.begin(9600);
   //for pids
@@ -63,11 +64,29 @@ void setup(){
 }
 
 void loop(){
-  serial.listen();
-  while(serial.available()>0){
-    char inByte = serial.read();
-    Serial.write(inByte);
+//  xbee.readPacket();
+//  if (xbee.getResponse().isAvailable()) {
+//    if(xbee.getResponse().getApiId()==AT_COMMAND_REQUEST){
+//      XBeeResponse res = xbee.getResponse();
+//    }
+//    Serial.write("\nsomething happened\n");
+//    String toWrite=String(xbee.getResponse().getApiId());
+//    Serial.print(toWrite);
+//    //RxResponse rx = xbee.getResponse();
+////    uint8_t* data=rx.getData();
+////    for(uint8_t i=0;i<rx.getDataLength();i++){
+////      Serial.write(rx.getData()[i]);
+////    }
+//  }
+  if(serial.available()>0){
+    uint8_t var= serial.read();
+    Serial.write(var.read());
   }
+  if(Serial.available()>0){
+    uint8_t var= Serial.read();
+    serial.write(var);
+  }
+  
     
 //    //create msg for transceiver to write to
 //    float msg;
